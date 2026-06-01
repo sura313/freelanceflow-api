@@ -1,3 +1,5 @@
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from rest_framework import generics, permissions
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -105,7 +107,24 @@ class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         return Task.objects.filter(project__owner=self.request.user)
 
+    def perform_update(self, serializer):
+        old_status = self.get_object().status
+        task = serializer.save()
+        new_status = task.status
 
+        # Push WebSocket notification if status changed
+        if old_status != new_status:
+            channel_layer = get_channel_layer()
+            group_name = f'notifications_{self.request.user.id}'
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    'type': 'task_notification',
+                    'message': f'Task "{task.title}" status changed from {old_status} to {new_status}',
+                    'task_id': task.id,
+                    'notification_type': 'status_change',
+                }
+            )
 class NotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer
 

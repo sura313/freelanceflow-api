@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'drf_spectacular',
+    'django_celery_beat',
     'api',
 ]
 
@@ -99,3 +100,31 @@ SPECTACULAR_SETTINGS = {
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'FreelanceFlow <noreply@freelanceflow.dev>'
+
+# Celery
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+# Celery Beat — periodic tasks schedule
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'check-overdue-tasks': {
+        'task': 'api.tasks.check_overdue_tasks',
+        'schedule': crontab(minute='*/30'),  # runs every 30 minutes
+    },
+}
+
+
+# Channels
+ASGI_APPLICATION = 'core.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
